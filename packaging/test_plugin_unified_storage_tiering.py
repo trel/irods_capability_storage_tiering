@@ -453,6 +453,51 @@ class TestStorageTieringPlugin(ResourceBase, unittest.TestCase):
                         alice_session.assert_icommand(f'irm -f {filename}')
                         admin_session.assert_icommand(f'iadmin rmresc {resc_name}')
 
+    def test_checksum_verification_with_regular_user_data_object(self):
+        """Test that checksum verification works when admin tiers regular user's data.
+        
+        This tests the fix for the issue where admin-initiated tiering with checksum
+        verification would fail with permission denied when trying to compute/update
+        the checksum on a data object owned by a regular user.
+        
+        The fix adds ADMIN_KW to the rcDataObjChksum call to allow admin users to
+        compute and store checksums without data object ownership.
+        """
+        with storage_tiering_configured():
+            zone_name = IrodsConfig().client_environment['irods_zone_name']
+            with session.make_session_for_existing_admin() as admin_session:
+                with session.make_session_for_existing_user('alice', 'apass', lib.get_hostname(), zone_name) as alice_session:
+                    filename = 'test_file_checksum_verification'
+
+                    try:
+                        # Configure tier 1 to use checksum verification
+                        admin_session.assert_icommand('imeta add -R rnd1 irods::storage_tiering::verification checksum')
+
+                        # Create and upload a file as a regular user
+                        lib.create_local_testfile(filename)
+                        alice_session.assert_icommand(f'iput -R rnd0 {filename}')
+                        alice_session.assert_icommand(f'imeta ls -d {filename}', 'STDOUT_SINGLELINE', filename)
+                        alice_session.assert_icommand(f'ils -L {filename}', 'STDOUT_SINGLELINE', filename)
+
+                        # Wait for object to age out of tier 0
+                        time.sleep(5)
+
+                        # Trigger tiering to move to tier 1 with checksum verification
+                        # This should succeed with the fix (ADMIN_KW added to rcDataObjChksum)
+                        invoke_storage_tiering_rule()
+                        delay_assert_icommand(alice_session, f'ils -L {filename}', 'STDOUT_SINGLELINE', 'rnd1')
+
+                        # Verify checksum was computed and stored
+                        coll_name = alice_session.home_collection
+                        stdout, err, rc = admin_session.run_icommand(
+                            ['iquest', '%s', f"select DATA_CHECKSUM where DATA_NAME = '{filename}' and COLL_NAME = '{coll_name}' and RESC_NAME = 'ufs2'"])
+                        # The checksum should exist now (not CAT_NO_ROWS_FOUND)
+                        self.assertEqual(-1, stdout.find('CAT_NO_ROWS_FOUND'))
+
+                    finally:
+                        alice_session.assert_icommand(f'irm -f {filename}')
+                        admin_session.assert_icommand('imeta rm -R rnd1 irods::storage_tiering::verification checksum')
+
 
 class TestStorageTieringPluginMultiGroup(ResourceBase, unittest.TestCase):
     def setUp(self):
