@@ -453,13 +453,13 @@ class TestStorageTieringPlugin(ResourceBase, unittest.TestCase):
                         alice_session.assert_icommand(f'irm -f {filename}')
                         admin_session.assert_icommand(f'iadmin rmresc {resc_name}')
 
-    def test_checksum_verification_with_regular_user_data_object(self):
+    def test_checksum_verification_with_regular_user_data_object__issue_354(self):
         """Test that checksum verification works when admin tiers regular user's data.
-        
+
         This tests the fix for the issue where admin-initiated tiering with checksum
         verification would fail with permission denied when trying to compute/update
         the checksum on a data object owned by a regular user.
-        
+
         The fix adds ADMIN_KW to the rcDataObjChksum call to allow admin users to
         compute and store checksums without data object ownership.
         """
@@ -490,7 +490,7 @@ class TestStorageTieringPlugin(ResourceBase, unittest.TestCase):
                         # Verify checksum was computed and stored
                         coll_name = alice_session.home_collection
                         stdout, err, rc = admin_session.run_icommand(
-                            ['iquest', '%s', f"select DATA_CHECKSUM where DATA_NAME = '{filename}' and COLL_NAME = '{coll_name}' and RESC_NAME = 'ufs2'"])
+                            ['iquest', '%s', f"select DATA_CHECKSUM where DATA_NAME = '{filename}' and COLL_NAME = '{coll_name}' and DATA_RESC_HIER like 'rnd1;%'"])
                         # The checksum should exist now (not CAT_NO_ROWS_FOUND)
                         self.assertEqual(-1, stdout.find('CAT_NO_ROWS_FOUND'))
 
