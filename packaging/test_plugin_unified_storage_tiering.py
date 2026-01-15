@@ -486,7 +486,7 @@ class TestStorageTieringPlugin(ResourceBase, unittest.TestCase):
                         stdout, err, rc = admin_session.run_icommand(
                             ['iquest', '%s', f"select DATA_CHECKSUM where DATA_NAME = '{filename}' and COLL_NAME = '{coll_name}' and DATA_RESC_HIER like 'rnd1;%'"])
                         # The checksum should exist now
-                        self.assertEqual('sha2:gkAGWzFOSdRYKUCqHcR7lCX80mYbPYjaBkqqJYZovAI=', stdout)
+                        self.assertEqual('sha2:gkAGWzFOSdRYKUCqHcR7lCX80mYbPYjaBkqqJYZovAI=\n', stdout)
                         self.assertEqual(None, err)
                         self.assertEqual(0, rc)
 
