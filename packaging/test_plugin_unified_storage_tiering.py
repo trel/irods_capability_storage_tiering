@@ -475,7 +475,7 @@ class TestStorageTieringPlugin(ResourceBase, unittest.TestCase):
 
                         # Create a file as a regular user
                         contents = 'The checksum knows things.'
-                        alice_session.assert_icommand(['istream', 'write', filename], input=contents)
+                        alice_session.assert_icommand(['istream', '-R', 'rnd0', 'write', filename], input=contents)
                         alice_session.assert_icommand(f'imeta ls -d {filename}', 'STDOUT_SINGLELINE', filename)
                         alice_session.assert_icommand(f'ils -L {filename}', 'STDOUT_SINGLELINE', filename)
 
