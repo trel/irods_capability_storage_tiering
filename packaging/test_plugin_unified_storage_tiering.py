@@ -473,9 +473,9 @@ class TestStorageTieringPlugin(ResourceBase, unittest.TestCase):
                         # Configure tier 1 to use checksum verification
                         admin_session.assert_icommand('imeta add -R rnd1 irods::storage_tiering::verification checksum')
 
-                        # Create and upload a file as a regular user
-                        lib.create_local_testfile(filename)
-                        alice_session.assert_icommand(f'iput -R rnd0 {filename}')
+                        # Create a file as a regular user
+                        contents = 'The checksum knows things.'
+                        alice_session.assert_icommand(['istream', 'write', filename], input=contents)
                         alice_session.assert_icommand(f'imeta ls -d {filename}', 'STDOUT_SINGLELINE', filename)
                         alice_session.assert_icommand(f'ils -L {filename}', 'STDOUT_SINGLELINE', filename)
 
@@ -483,7 +483,6 @@ class TestStorageTieringPlugin(ResourceBase, unittest.TestCase):
                         time.sleep(5)
 
                         # Trigger tiering to move to tier 1 with checksum verification
-                        # This should succeed with the fix (ADMIN_KW added to rcDataObjChksum)
                         invoke_storage_tiering_rule()
                         delay_assert_icommand(alice_session, f'ils -L {filename}', 'STDOUT_SINGLELINE', 'rnd1')
 
@@ -492,7 +491,7 @@ class TestStorageTieringPlugin(ResourceBase, unittest.TestCase):
                         stdout, err, rc = admin_session.run_icommand(
                             ['iquest', '%s', f"select DATA_CHECKSUM where DATA_NAME = '{filename}' and COLL_NAME = '{coll_name}' and DATA_RESC_HIER like 'rnd1;%'"])
                         # The checksum should exist now (not CAT_NO_ROWS_FOUND)
-                        self.assertEqual(-1, stdout.find('CAT_NO_ROWS_FOUND'))
+                        self.assertNotIn("CAT_NO_ROWS_FOUND", stdout)
 
                     finally:
                         alice_session.assert_icommand(f'irm -f {filename}')
